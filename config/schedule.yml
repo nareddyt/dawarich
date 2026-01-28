@@ -6,7 +6,7 @@ bulk_stats_calculating_job:
   queue: stats
 
 area_visits_calculation_scheduling_job:
-  cron: "0 0 * * *" # every day at 0:00
+  cron: "0 */1 * * *" # every 1 hour
   class: "AreaVisitsCalculationSchedulingJob"
   queue: visit_suggesting
 

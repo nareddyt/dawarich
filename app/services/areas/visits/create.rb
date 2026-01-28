@@ -11,16 +11,18 @@ class Areas::Visits::Create
   end
 
   def call
-    areas.map { area_visits(_1) }
+    areas.each { area_visits(_1) }
   end
 
   private
 
   def area_visits(area)
-    points_grouped_by_month = area_points(area)
-    visits_by_month = group_points_by_month(points_grouped_by_month)
+    area_points(area).each do |month, points|
+      visits = Visits::Group.new(
+        time_threshold_minutes: @time_threshold_minutes,
+        merge_threshold_minutes: @merge_threshold_minutes
+      ).call(points)
 
-    visits_by_month.each do |month, visits|
       Rails.logger.info("Month: #{month}, Total visits: #{visits.size}")
 
       visits.each do |time_range, visit_points|
@@ -44,19 +46,6 @@ class Areas::Visits::Create
     # check if all points within the area are assigned to a visit
 
     points.group_by { |point| Time.zone.at(point.timestamp).strftime('%Y-%m') }
-  end
-
-  def group_points_by_month(points)
-    visits_by_month = {}
-
-    points.each do |month, points_in_month|
-      visits_by_month[month] = Visits::Group.new(
-        time_threshold_minutes: @time_threshold_minutes,
-        merge_threshold_minutes: @merge_threshold_minutes
-      ).call(points_in_month)
-    end
-
-    visits_by_month
   end
 
   def create_or_update_visit(area, time_range, visit_points)

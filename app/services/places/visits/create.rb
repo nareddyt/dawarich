@@ -14,16 +14,18 @@ class Places::Visits::Create
   end
 
   def call
-    places.map { place_visits(_1) }
+    places.each { place_visits(_1) }
   end
 
   private
 
   def place_visits(place)
-    points_grouped_by_month = place_points(place)
-    visits_by_month = group_points_by_month(points_grouped_by_month)
+    place_points(place).each do |month, points|
+      visits = Visits::Group.new(
+        time_threshold_minutes: @time_threshold_minutes,
+        merge_threshold_minutes: @merge_threshold_minutes
+      ).call(points)
 
-    visits_by_month.each do |month, visits|
       Rails.logger.info("Month: #{month}, Total visits: #{visits.size}")
 
       visits.each do |time_range, visit_points|
@@ -45,19 +47,6 @@ class Places::Visits::Create
                   .order(timestamp: :asc)
 
     points.group_by { |point| Time.zone.at(point.timestamp).strftime('%Y-%m') }
-  end
-
-  def group_points_by_month(points)
-    visits_by_month = {}
-
-    points.each do |month, points_in_month|
-      visits_by_month[month] = Visits::Group.new(
-        time_threshold_minutes: @time_threshold_minutes,
-        merge_threshold_minutes: @merge_threshold_minutes
-      ).call(points_in_month)
-    end
-
-    visits_by_month
   end
 
   def create_or_update_visit(place, time_range, visit_points)
