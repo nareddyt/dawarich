@@ -26,21 +26,21 @@ class Places::Visits::Create
     # Query distinct months first (no point data), then process each month separately.
     # Process visits immediately per month - DO NOT build a hash of all visits for all months
     # before processing (removing that intermediate hash was a key optimization).
-    Rails.logger.debug("[Places::Visits::Create] place_visits place_id=#{place.id} name=#{place.name}")
+    Rails.logger.warn("[Places::Visits::Create] place_visits place_id=#{place.id} name=#{place.name}")
 
     months = distinct_months_for_place(place)
-    Rails.logger.debug("[Places::Visits::Create] distinct_months_for_place place_id=#{place.id} months=#{months.inspect} count=#{months.size}")
+    Rails.logger.warn("[Places::Visits::Create] distinct_months_for_place place_id=#{place.id} months=#{months.inspect} count=#{months.size}")
     if months.empty?
-      Rails.logger.debug("[Places::Visits::Create] place_id=#{place.id} no months (empty data), skipping")
+      Rails.logger.warn("[Places::Visits::Create] place_id=#{place.id} no months (empty data), skipping")
       return
     end
 
     months.each do |month|
-      Rails.logger.debug("[Places::Visits::Create] processing month=#{month} place_id=#{place.id}")
+      Rails.logger.warn("[Places::Visits::Create] processing month=#{month} place_id=#{place.id}")
       points = place_points_for_month(place, month)
-      Rails.logger.debug("[Places::Visits::Create] place_points_for_month place_id=#{place.id} month=#{month} points_count=#{points.size}")
+      Rails.logger.warn("[Places::Visits::Create] place_points_for_month place_id=#{place.id} month=#{month} points_count=#{points.size}")
       if points.empty?
-        Rails.logger.debug("[Places::Visits::Create] skipping empty month=#{month} place_id=#{place.id}")
+        Rails.logger.warn("[Places::Visits::Create] skipping empty month=#{month} place_id=#{place.id}")
         next
       end
 
@@ -76,7 +76,7 @@ class Places::Visits::Create
     SQL
     result = ActiveRecord::Base.connection.select_all(sql)
     months = result.map { |r| r['month'] }
-    Rails.logger.debug("[Places::Visits::Create] distinct_months_for_place place_id=#{place.id} db_rows=#{result.length} months=#{months.inspect}")
+    Rails.logger.warn("[Places::Visits::Create] distinct_months_for_place place_id=#{place.id} db_rows=#{result.length} months=#{months.inspect}")
     months
   end
 
@@ -91,7 +91,7 @@ class Places::Visits::Create
     year, month_num = month.split('-').map(&:to_i)
     month_start = Time.utc(year, month_num, 1).to_i
     month_end = (Time.utc(year, month_num, 1) + 1.month).to_i - 1
-    Rails.logger.debug("[Places::Visits::Create] place_points_for_month place_id=#{place.id} month=#{month} timestamp_range=#{month_start}..#{month_end}")
+    Rails.logger.warn("[Places::Visits::Create] place_points_for_month place_id=#{place.id} month=#{month} timestamp_range=#{month_start}..#{month_end}")
 
     Point.where(user_id: user.id)
          # Drop raw_data JSON to keep memory usage reasonable (see #2119)
