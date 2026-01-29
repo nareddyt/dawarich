@@ -26,11 +26,23 @@ class Places::Visits::Create
     # Query distinct months first (no point data), then process each month separately.
     # Process visits immediately per month - DO NOT build a hash of all visits for all months
     # before processing (removing that intermediate hash was a key optimization).
+    Rails.logger.debug("[Places::Visits::Create] place_visits place_id=#{place.id} name=#{place.name}")
+
     months = distinct_months_for_place(place)
+    Rails.logger.debug("[Places::Visits::Create] distinct_months_for_place place_id=#{place.id} months=#{months.inspect} count=#{months.size}")
+    if months.empty?
+      Rails.logger.debug("[Places::Visits::Create] place_id=#{place.id} no months (empty data), skipping")
+      return
+    end
 
     months.each do |month|
+      Rails.logger.debug("[Places::Visits::Create] processing month=#{month} place_id=#{place.id}")
       points = place_points_for_month(place, month)
-      next if points.empty?
+      Rails.logger.debug("[Places::Visits::Create] place_points_for_month place_id=#{place.id} month=#{month} points_count=#{points.size}")
+      if points.empty?
+        Rails.logger.debug("[Places::Visits::Create] skipping empty month=#{month} place_id=#{place.id}")
+        next
+      end
 
       visits = Visits::Group.new(
         time_threshold_minutes: @time_threshold_minutes,
@@ -63,7 +75,9 @@ class Places::Visits::Create
       ORDER BY month ASC
     SQL
     result = ActiveRecord::Base.connection.select_all(sql)
-    result.map { |r| r['month'] }
+    months = result.map { |r| r['month'] }
+    Rails.logger.debug("[Places::Visits::Create] distinct_months_for_place place_id=#{place.id} db_rows=#{result.size} months=#{months.inspect}")
+    months
   end
 
   def place_points_for_month(place, month)
@@ -77,6 +91,7 @@ class Places::Visits::Create
     year, month_num = month.split('-').map(&:to_i)
     month_start = Time.utc(year, month_num, 1).to_i
     month_end = (Time.utc(year, month_num, 1) + 1.month).to_i - 1
+    Rails.logger.debug("[Places::Visits::Create] place_points_for_month place_id=#{place.id} month=#{month} timestamp_range=#{month_start}..#{month_end}")
 
     Point.where(user_id: user.id)
          # Drop raw_data JSON to keep memory usage reasonable (see #2119)
