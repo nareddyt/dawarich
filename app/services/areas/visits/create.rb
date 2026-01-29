@@ -73,7 +73,7 @@ class Areas::Visits::Create
     SQL
     result = ActiveRecord::Base.connection.select_all(sql)
     months = result.map { |r| r['month'] }
-    Rails.logger.debug("[Areas::Visits::Create] distinct_months_for_area area_id=#{area.id} db_rows=#{result.size} months=#{months.inspect}")
+    Rails.logger.debug("[Areas::Visits::Create] distinct_months_for_area area_id=#{area.id} db_rows=#{result.length} months=#{months.inspect}")
     months
   end
 
