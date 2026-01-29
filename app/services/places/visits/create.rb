@@ -53,11 +53,17 @@ class Places::Visits::Create
         DEFAULT_PLACE_RADIUS / ::DISTANCE_UNITS[user.safe_settings.distance_unit.to_sym]
       end
 
-    Point.where(user_id: user.id)
-         .near([place.latitude, place.longitude], place_radius, user.safe_settings.distance_unit)
-         .select("DISTINCT TO_CHAR(TO_TIMESTAMP(timestamp), 'YYYY-MM') AS month")
-         .order('month ASC')
-         .pluck('month')
+    # Same pattern as User#years_tracked: Use select_all for better performance with large datasets.
+    # From the subquery (filtered points, runs db-side), compute distinct month strings.
+    relation = Point.where(user_id: user.id)
+                    .near([place.latitude, place.longitude], place_radius, user.safe_settings.distance_unit)
+    sql = <<~SQL.squish
+      SELECT DISTINCT TO_CHAR(TO_TIMESTAMP(timestamp), 'YYYY-MM') AS month
+      FROM (#{relation.to_sql}) AS sub
+      ORDER BY month ASC
+    SQL
+    result = ActiveRecord::Base.connection.select_all(sql)
+    result.map { |r| r['month'] }
   end
 
   def place_points_for_month(place, month)
